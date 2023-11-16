@@ -10,13 +10,11 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .dataset import ScintillationDataset
-from .networks import FlatConvolutions, UNet
+from .networks import FlatConvolutions, SimpleViT, UNet
 
 
-def train(num_epochs=100, logdir="/tmp/deep-tec-estimate"):
-    network = FlatConvolutions(
-        in_channels=6, out_channels_list=[1], kernel_sizes_list=[5]
-    )
+def train(selection, num_epochs=100, logdir="/tmp/deep-tec-estimate"):
+    network = build_network(selection)
     train_dataset = ScintillationDataset(1000, 0)
     val_dataset = ScintillationDataset(1000, 0)
     train_dataloader = DataLoader(train_dataset, batch_size=32, num_workers=1)
@@ -45,6 +43,27 @@ def train(num_epochs=100, logdir="/tmp/deep-tec-estimate"):
                         imageio.imwrite(
                             os.path.join(logdir, f"plot_{i}.jpg"), sample_plot
                         )
+
+
+def build_network(selection):
+    if selection == "unet":
+        return UNet(6, 1, [32, 64, 128, 256])
+    elif selection == "basic":
+        return FlatConvolutions(6, [32, 64, 1], [5, 5, 1])
+    elif selection == "transformer":
+        return SimpleViT(
+            seq_len=4096,
+            patch_size=16,
+            num_classes=1,
+            dim=256,
+            depth=3,
+            heads=4,
+            mlp_dim=256,
+            channels=6,
+            dim_head=64,
+        )
+    else:
+        raise NotImplementedError("Options are 'unet', 'basic', 'transformer'")
 
 
 def make_sample_plot(_x, _y, _y_hat):
